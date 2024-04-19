@@ -25,7 +25,7 @@ func RemoveIndex(s []cards.Card, i int) []cards.Card {
 func main() {
 	card := cards.Card{}
 	// 1. 產生player牌組
-	playerHands := card.NewDeck()
+	playerHands, _ := card.NewDeck()
 
 	for i, hand := range playerHands {
 		fmt.Printf("玩家 %d 的手牌: %v\n", i+1, hand)
@@ -50,7 +50,7 @@ func main() {
 		return
 	}
 	// fmt.Println("cards1:", cards2)
-	fmt.Printf("牌型: %s, 最高牌: %s %d\n", cards.CardType[cardType], cards.Suits[highCard.Suit], highCard.Value)
+	fmt.Printf("牌型: %s, 最高牌: %s %d\n", cards.CardTypeStringSlice[cardType], cards.Suits[highCard.Suit], highCard.Value)
 	fmt.Println("--------------cards2-----------------")
 
 	cards2 := []cards.Card{
@@ -65,14 +65,13 @@ func main() {
 		fmt.Println("card:", cards.Suits[card.Suit], card.Value)
 	}
 
-
 	cardType, highCard, err = card.AnalyzeCards(cards2)
 	if err != nil {
 		fmt.Println("判斷牌型失敗:", err)
 		return
 	}
 	// fmt.Println("cards1:", cards2)
-	fmt.Printf("牌型: %s, 最高牌: %s %d\n", cards.CardType[cardType], cards.Suits[highCard.Suit], highCard.Value)
+	fmt.Printf("牌型: %s, 最高牌: %s %d\n", cards.CardTypeStringSlice[cardType], cards.Suits[highCard.Suit], highCard.Value)
 	fmt.Println("-------------------------------------")
 	// 比較牌型
 	result, err := card.CompareCard(cards1, cards2)
@@ -103,9 +102,9 @@ func main() {
 	cards5 := []cards.Card{
 		{Suit: cards.Plum, Value: cards.Four},
 		{Suit: cards.Heart, Value: cards.Eight},
-		{Suit: cards.Plum, Value: cards.Seven},
-		{Suit: cards.Spades, Value: cards.Six},
-		{Suit: cards.Spades, Value: cards.Five},
+		{Suit: cards.Plum, Value: cards.Eight},
+		{Suit: cards.Spades, Value: cards.Eight},
+		{Suit: cards.Spades, Value: cards.Four},
 	}
 
 	cards6 := []cards.Card{
