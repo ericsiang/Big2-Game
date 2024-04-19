@@ -3,7 +3,6 @@ package cards
 import (
 	"errors"
 	"fmt"
-	"math/rand"
 	"sort"
 )
 
@@ -18,23 +17,27 @@ import (
 // 3、無JQKA2、QKA23、KA234這種順
 
 // 花色
+type Suit int
+
 const (
-	Plum   = iota //梅花
-	Block         //方塊
-	Heart         //紅心
-	Spades        //黑桃
+	Plum   Suit = iota //梅花
+	Block              //方塊
+	Heart              //紅心
+	Spades             //黑桃
 )
 
 // 牌型 同花順> 鐵支> 葫蘆 > 順子> 三條> 對子> 單張
+type CardType int
+
 const (
-	None          = iota
-	Single        //單張
-	Pair          //對子
-	ThreeOfAKind  //三條
-	Straight      //順子
-	FullHouse     //葫蘆(3+2)
-	FourOfAKind   //鐵支(4+1)
-	StraightFlush //同花順
+	None          CardType = iota
+	Single                 //單張
+	Pair                   //對子
+	ThreeOfAKind           //三條
+	Straight               //順子
+	FullHouse              //葫蘆(3+2)
+	FourOfAKind            //鐵支(4+1)
+	StraightFlush          //同花順
 )
 
 const (
@@ -54,67 +57,31 @@ const (
 )
 
 var (
-	CardType = []string{"None", "單張", "對子", "三條", "順子", "葫蘆", "鐵支", "同花順"}
-	Suits    = []string{"梅花", "方塊", "紅心", "黑桃"}
+	CardTypeStringSlice = []string{"None", "單張", "對子", "三條", "順子", "葫蘆", "鐵支", "同花順"}
+	Suits               = []string{"梅花", "方塊", "紅心", "黑桃"}
 )
 
 // 建立 Card 結構體，包含花色和點數
 type Card struct {
-	Suit  int
+	Suit  Suit
 	Value int
 }
 
+type GarbageCard struct {
+	AlreadyUseCard []Card
+}
+
 // 產生牌組
-func (c Card) generateDeck() []Card {
-	deck := []Card{}
-	suits := []int{Plum, Block, Heart, Spades}
-	values := []int{Ace, Two, Three, Four, Five, Six, Seven, Eight, Nine, Ten, J, Q, K}
-	for _, suit := range suits {
-		for _, val := range values {
-			deck = append(deck, Card{Suit: suit, Value: val})
-		}
-	}
-
-	return deck
-}
-
-// 洗牌
-func (c *Card) shuffleDeck(deck []Card) {
-	for i := len(deck) - 1; i > 0; i-- {
-		j := rand.Intn(i + 1)
-		deck[i], deck[j] = deck[j], deck[i]
-	}
-}
-
-// 發牌
-func (c Card) dealDeck(deck []Card) [][]Card {
-	// 計算每個玩家可以獲得的牌數
-	numPlayers := 4
-	cardsPerPlayer := len(deck) / numPlayers
-
-	// 儲存每個玩家的手牌
-	playerHands := make([][]Card, 4)
-
-	// 發牌
-	for i := 0; i < numPlayers; i++ {
-		// 直接從牌組中取出指定数量的牌，作為玩家的手牌
-		playerHands[i] = deck[i*cardsPerPlayer : (i+1)*cardsPerPlayer]
-	}
-
-	return playerHands
-}
-
-func (c Card) NewDeck() [][]Card {
-	// 產生牌組
-	deck := c.generateDeck()
-	// 洗牌
-	c.shuffleDeck(deck)
-	// 發牌
-	return c.dealDeck(deck)
+func (c Card) NewDeck() ([][]Card, *GarbageCard) {
+	deck := &Deck{}
+	alreadyUseCard := []Card{}
+	garbageCard := &GarbageCard{AlreadyUseCard: alreadyUseCard}
+	newDeck := deck.newDeck()
+	return newDeck, garbageCard
 }
 
 // 判斷牌型
-func (c Card) AnalyzeCards(cards []Card) (handType int, highCard Card, err error) {
+func (c Card) AnalyzeCards(cards []Card) (handType CardType, highCard Card, err error) {
 	if len(cards) > 5 {
 		err := errors.New("牌型數量不正確")
 		return 0, Card{}, err
@@ -124,15 +91,15 @@ func (c Card) AnalyzeCards(cards []Card) (handType int, highCard Card, err error
 	case c.isStraightFlush(cards): // 判斷是否為同花順
 		return StraightFlush, c.getStraightHighCard(cards), nil
 	case c.isFourOfAKind(cards): // 判斷是否為鐵支
-		return FourOfAKind, c.getFourOfAKindHighCard(cards), nil
+		return FourOfAKind, c.getSameCountHighCard(cards, 4), nil
 	case c.isFullHouse(cards): // 判斷是否為葫蘆
-		return FullHouse, c.getThreeOfKindHighCard(cards), nil
+		return FullHouse, c.getSameCountHighCard(cards, 3), nil
 	case c.isStraight(cards): // 判斷是否為順子
 		return Straight, c.getStraightHighCard(cards), nil
 	case c.isThreeOfAKind(cards): // 判斷是否為三條
-		return ThreeOfAKind, c.getThreeOfKindHighCard(cards), nil
+		return ThreeOfAKind, c.getSameCountHighCard(cards, 3), nil
 	case c.isPair(cards): // 判斷是否為對子
-		return Pair, c.getPairHighCard(cards), nil
+		return Pair, c.getSameCountHighCard(cards, 2), nil
 	default: //default為單張
 		return Single, c.getSingleHighCard(cards), nil
 	}
@@ -153,8 +120,8 @@ func (c Card) CompareCard(cards1, cards2 []Card) (int, error) {
 		return 0, err
 	}
 
-	fmt.Printf("handType1 牌型: %s, 最高牌: %s %d\n", CardType[handType1], Suits[highCard1.Suit], highCard1.Value)
-	fmt.Printf("handType2 牌型: %s, 最高牌: %s %d\n", CardType[handType2], Suits[highCard2.Suit], highCard2.Value)
+	fmt.Printf("handType1 牌型: %s, 最高牌: %s %d\n", CardTypeStringSlice[handType1], Suits[highCard1.Suit], highCard1.Value)
+	fmt.Printf("handType2 牌型: %s, 最高牌: %s %d\n", CardTypeStringSlice[handType2], Suits[highCard2.Suit], highCard2.Value)
 
 	// 2. 比較牌型
 	if handType1 > handType2 {
@@ -282,28 +249,11 @@ func (c Card) isFourOfAKind(cards []Card) bool {
 	return hashFour && hasOne
 }
 
-// 取得鐵支的 HighCard
-func (c Card) getFourOfAKindHighCard(cards []Card) Card {
-	valueCounts := make(map[int]int)
-	highValue := 0
-	for _, card := range cards {
-		valueCounts[card.Value]++
-		if valueCounts[card.Value] == 4 {
-			if card.Value == Two { //2 最大
-				highValue = Two
-				return Card{Suit: Spades, Value: highValue}
-			} else if card.Value == Ace { //接著是1
-				highValue = Ace
-			}
-
-			if card.Value > highValue && highValue != Ace {
-				highValue = card.Value
-			}
-
-		}
-	}
-
-	return Card{Suit: Spades, Value: highValue}
+// 取得鐵支、三條、對子的 HighCard
+func (c Card) getSameCountHighCard(cards []Card, checkCount int) Card {
+	highValueCards := c.getHighValueCards(cards, checkCount)
+	highCard := c.getSameValueHighSuit(highValueCards)
+	return highCard
 }
 
 // 是否為葫蘆
@@ -340,23 +290,16 @@ func (c Card) isThreeOfAKind(cards []Card) bool {
 	return false
 }
 
-// 取得三條的 HighCard
-func (c Card) getThreeOfKindHighCard(cards []Card) Card {
+// 取得最高點數的相同牌組
+func (c Card) getHighValueCards(cards []Card, checkCount int) []Card {
 	valueCounts := make(map[int][]Card)
 	highValue := 0
 	for _, card := range cards {
-		if _, ok := valueCounts[card.Value]; !ok {
-			cards := make([]Card, 0, 4)
-			valueCounts[card.Value] = append(cards, card)
-		} else {
-			cards := valueCounts[card.Value]
-			valueCounts[card.Value] = append(cards, card)
-		}
-		if len(valueCounts[card.Value]) == 3 {
+		valueCounts[card.Value] = append(valueCounts[card.Value], card)
+		if len(valueCounts[card.Value]) == checkCount {
 			if card.Value == Two { //2 最大
 				highValue = Two
-				highCard := c.getSameValueHighSuit(valueCounts[highValue])
-				return highCard
+				return valueCounts[highValue]
 			} else if card.Value == Ace { //接著是1
 				highValue = Ace
 			}
@@ -368,9 +311,7 @@ func (c Card) getThreeOfKindHighCard(cards []Card) Card {
 		}
 	}
 
-	highCard := c.getSameValueHighSuit(valueCounts[highValue])
-
-	return highCard
+	return valueCounts[highValue]
 }
 
 // 同點取得最高花色
@@ -398,38 +339,6 @@ func (c Card) isPair(cards []Card) bool {
 		}
 	}
 	return false
-}
-
-// 取得對子的 HighCard
-func (c Card) getPairHighCard(cards []Card) Card {
-	valueCounts := make(map[int][]Card)
-	highValue := 0
-	for _, card := range cards {
-		if _, ok := valueCounts[card.Value]; !ok {
-			cards := make([]Card, 0, 4)
-			valueCounts[card.Value] = append(cards, card)
-		} else {
-			cards := valueCounts[card.Value]
-			valueCounts[card.Value] = append(cards, card)
-		}
-		if len(valueCounts[card.Value]) == 2 {
-			if card.Value == Two { //2 最大
-				highValue = Two
-				highCard := c.getSameValueHighSuit(valueCounts[highValue])
-				return highCard
-			} else if card.Value == Ace { //接著是1
-				highValue = Ace
-			}
-
-			if card.Value > highValue && highValue != Ace {
-				highValue = card.Value
-			}
-
-		}
-	}
-
-	highCard := c.getSameValueHighSuit(valueCounts[highValue])
-	return highCard
 }
 
 // 取得單張的 HighCard
